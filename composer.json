@@ -20,7 +20,7 @@
   },
   "scripts": {
     "test": [
-      "powershell -Command \"Start-Process php -ArgumentList '-S','localhost:8001','-t','public' -WindowStyle Hidden\"",
+      "powershell -Command \"Start-Process php -ArgumentList '-S','127.0.0.1:8001','-t','public' -WindowStyle Hidden\"",
       "powershell -Command \"Start-Sleep -Seconds 2\"",
       "vendor\\bin\\codecept build",
       "powershell -Command \"$env:APP_ENV='test'; vendor\\bin\\phpunit --testdox\"",
@@ -29,7 +29,7 @@
     ],
     "test:unit": "vendor\\bin\\phpunit --testdox",
     "test:acceptance": [
-      "powershell -Command \"Start-Process php -ArgumentList '-S','localhost:8001','-t','public' -WindowStyle Hidden\"",
+      "powershell -Command \"Start-Process php -ArgumentList '-S','127.0.0.1:8001','-t','public' -WindowStyle Hidden\"",
       "powershell -Command \"Start-Sleep -Seconds 2\"",
       "vendor\\bin\\codecept build",
       "powershell -Command \"$env:APP_ENV='test'; vendor\\bin\\codecept run acceptance\"",

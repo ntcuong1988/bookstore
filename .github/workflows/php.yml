@@ -20,7 +20,7 @@ jobs:
           MYSQL_DATABASE: ${{ vars.DB_DATABASE || 'bookstore_ci' }}
         ports: ["3306:3306"]
         options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -39,7 +39,7 @@ jobs:
       - name: Wait for MySQL
         run: |
           for i in `seq 1 30`; do
-            mysqladmin ping -h localhost -uroot -proot && break
+            mysqladmin ping -h 127.0.0.1 -uroot -proot && break
             sleep 2
           done
 
@@ -55,12 +55,12 @@ jobs:
 
       - name: Create database & config
         run: |
-          mysql -h localhost -uroot -proot -e "CREATE DATABASE IF NOT EXISTS ${{ vars.DB_DATABASE || 'bookstore_ci' }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS ${{ vars.DB_DATABASE || 'bookstore_ci' }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           mkdir -p config
           cat > config/database.php <<'PHP'
           <?php
           return [
-              'DB_HOST' => 'localhost',
+              'DB_HOST' => '127.0.0.1',
               'DB_PORT' => '3306',
               'DB_NAME' => getenv('DB_DATABASE') ?: (getenv('GITHUB_VARIABLES_DB_DATABASE') ?: 'bookstore_ci'),
               'DB_USER' => getenv('DB_USERNAME') ?: 'root',
@@ -91,9 +91,9 @@ jobs:
         run: |
           DOCROOT="public"
           if [ ! -d "$DOCROOT" ]; then DOCROOT="."; fi
-          php -S localhost:8001 -t "$DOCROOT" > server.log 2>&1 &
+          php -S 127.0.0.1:8001 -t "$DOCROOT" > server.log 2>&1 &
           sleep 2
-          curl -I http://localhost:8001 || true
+          curl -I http://127.0.0.1:8001 || true
 
       - name: PHPUnit - Unit tests
         if: hashFiles('phpunit.xml', 'phpunit.xml.dist') != ''
@@ -108,7 +108,7 @@ jobs:
 
       - name: Show DB versions table (if exists)
         run: |
-          mysql -h localhost -uroot -proot -e "USE ${{ vars.DB_DATABASE || 'bookstore_ci' }}; SHOW TABLES LIKE '__db_version';" | grep __db_version &&           mysql -h localhost -uroot -proot -e "SELECT version, description, applied_at FROM ${{ vars.DB_DATABASE || 'bookstore_ci' }}.__db_version ORDER BY id;" || true
+          mysql -h 127.0.0.1 -uroot -proot -e "USE ${{ vars.DB_DATABASE || 'bookstore_ci' }}; SHOW TABLES LIKE '__db_version';" | grep __db_version &&           mysql -h 127.0.0.1 -uroot -proot -e "SELECT version, description, applied_at FROM ${{ vars.DB_DATABASE || 'bookstore_ci' }}.__db_version ORDER BY id;" || true
 
       - name: Upload logs (on failure)
         if: failure()
