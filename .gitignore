@@ -23,8 +23,6 @@ nbproject/
 *.sublime-*
 
 # --- PHPUnit / Testing ---
-phpunit.xml
-phpunit.xml.dist
 coverage/
 build/
 reports/
