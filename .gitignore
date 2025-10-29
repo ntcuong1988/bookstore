@@ -1,0 +1,38 @@
+# --- System / OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+*.bak
+*.tmp
+*.swp
+*.swo
+*.orig
+
+# --- PHP / Composer ---
+vendor/
+composer.lock
+composer.phar
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+nbproject/
+*.code-workspace
+*.sublime-*
+
+# --- PHPUnit / Testing ---
+phpunit.xml
+phpunit.xml.dist
+coverage/
+build/
+reports/
+test-output/
+tests/_output/
+tests/_support/_generated/
+
+# --- GitHub Actions runtime ---
+.github/workflows/*.local.yml
+.github/workflows/*.draft.yml
+.github/workflows/*.bak

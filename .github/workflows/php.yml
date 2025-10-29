@@ -1,0 +1,74 @@
+name: PHP CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: bookstore
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Wait for MySQL
+        run: |
+          for i in `seq 1 30`; do
+            mysqladmin ping -h127.0.0.1 -P3306 -uroot -proot && break
+            sleep 2
+          done
+
+      - name: Import schema
+        run: |
+          mysql -h127.0.0.1 -P3306 -uroot -proot < sql/schema.sql
+
+      - name: Start PHP server
+        run: |
+          php -S 127.0.0.1:8001 -t public > /dev/null 2>&1 &
+          echo $! > .phpserverpid
+          sleep 2
+
+      - name: Run PHPUnit
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASS: root
+          DB_NAME: bookstore
+        run: vendor/bin/phpunit --testdox
+
+      - name: Run Codeception (acceptance)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASS: root
+          DB_NAME: bookstore
+        run: vendor/bin/codecept run acceptance
+
+      - name: Stop PHP server
+        if: always()
+        run: kill $(cat .phpserverpid) || true
