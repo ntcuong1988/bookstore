@@ -65,7 +65,7 @@ jobs:
               'DB_PORT' => '3306',
               'DB_NAME' => getenv('DB_DATABASE') ?: (getenv('GITHUB_VARIABLES_DB_DATABASE') ?: 'bookstore_ci'),
               'DB_USER' => getenv('DB_USERNAME') ?: 'root',
-              'DB_PASS' => getenv('DB_PASSWORD') ?: 'root',
+              'DB_PASS' => getenv('DB_PASSWORD') ?: '',
               'DB_CHARSET' => 'utf8mb4',
           ];
           PHP
