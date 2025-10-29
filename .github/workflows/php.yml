@@ -9,6 +9,12 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: 127.0.0.1
+      DB_NAME: ${{ vars.DB_DATABASE || 'bookstore_ci' }}
+      DB_USER: root
+      DB_PASS: root
+      APP_BASE_URL: http://127.0.0.1:8001                
     strategy:
       matrix:
         php: ["8.1", "8.2"]
@@ -65,7 +71,7 @@ jobs:
               'DB_PORT' => '3306',
               'DB_NAME' => getenv('DB_DATABASE') ?: (getenv('GITHUB_VARIABLES_DB_DATABASE') ?: 'bookstore_ci'),
               'DB_USER' => getenv('DB_USERNAME') ?: 'root',
-              'DB_PASS' => getenv('DB_PASSWORD') ?: '',
+              'DB_PASS' => getenv('DB_PASSWORD') ?: 'root',
               'DB_CHARSET' => 'utf8mb4',
           ];
           PHP
