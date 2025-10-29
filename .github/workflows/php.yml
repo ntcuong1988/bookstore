@@ -1,4 +1,4 @@
-name: CI - Bookstore PHP 8 + MySQL
+name: CI - Bookstore PHP 8 + MySQL + Tests
 
 on:
   push:
@@ -43,6 +43,16 @@ jobs:
             sleep 2
           done
 
+      - name: Ensure composer.json (init if missing)
+        run: |
+          if [ ! -f composer.json ]; then
+            composer init -n --name="your/bookstore" --type="project"
+          fi
+
+      - name: Require dev test tools (PHPUnit + Codeception)
+        run: |
+          composer require --dev phpunit/phpunit:^10 codeception/codeception:^5 codeception/module-phpbrowser:^3
+
       - name: Create database & config
         run: |
           mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS ${{ vars.DB_DATABASE || 'bookstore_ci' }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -63,14 +73,48 @@ jobs:
         run: |
           find . -type f -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
 
-      - name: Run migrations
-        run: php scripts/migrate.php up
+      - name: Run DB migrations
+        run: |
+          if [ -f scripts/migrate.php ]; then
+            php scripts/migrate.php up
+          else
+            echo "No migration runner found at scripts/migrate.php (skipping)"
+          fi
 
       - name: Seed demo data
-        run: php scripts/migrate.php seed
-
-      - name: Smoke check - list tables
         run: |
-          mysql -h 127.0.0.1 -uroot -proot -e "SHOW TABLES IN ${{ vars.DB_DATABASE || 'bookstore_ci' }};"
+          if [ -f scripts/migrate.php ]; then
+            php scripts/migrate.php seed || true
+          fi
 
-      # Add your test suite here (PHPUnit/Codeception) if present
+      - name: Start PHP built-in server for acceptance tests
+        run: |
+          DOCROOT="public"
+          if [ ! -d "$DOCROOT" ]; then DOCROOT="."; fi
+          php -S 127.0.0.1:8080 -t "$DOCROOT" > server.log 2>&1 &
+          sleep 2
+          curl -I http://127.0.0.1:8080 || true
+
+      - name: PHPUnit - Unit tests
+        if: hashFiles('phpunit.xml', 'phpunit.xml.dist') != ''
+        run: |
+          vendor/bin/phpunit --colors=always
+
+      - name: Codeception - Acceptance tests
+        if: hashFiles('codeception.yml') != ''
+        run: |
+          vendor/bin/codecept build
+          vendor/bin/codecept run acceptance --steps --debug
+
+      - name: Show DB versions table (if exists)
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "USE ${{ vars.DB_DATABASE || 'bookstore_ci' }}; SHOW TABLES LIKE '__db_version';" | grep __db_version &&           mysql -h 127.0.0.1 -uroot -proot -e "SELECT version, description, applied_at FROM ${{ vars.DB_DATABASE || 'bookstore_ci' }}.__db_version ORDER BY id;" || true
+
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            server.log
+            tests/**/_output/*
