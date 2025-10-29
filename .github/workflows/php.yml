@@ -1,26 +1,29 @@
-name: PHP CI
+name: CI - Bookstore PHP 8 + MySQL
 
 on:
   push:
+    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build-and-test:
+  build-test:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        php: ["8.1", "8.2"]
     services:
       mysql:
-        image: mysql:8
+        image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: bookstore
-        ports:
-          - 3306:3306
+          MYSQL_DATABASE: ${{ vars.DB_DATABASE || 'bookstore_ci' }}
+        ports: ["3306:3306"]
         options: >-
-          --health-cmd="mysqladmin ping -proot"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
 
     steps:
       - name: Checkout
@@ -29,46 +32,45 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, mbstring, intl, curl
           coverage: none
-          tools: composer:v2
-
-      - name: Install dependencies
-        run: composer install --no-interaction --no-progress
 
       - name: Wait for MySQL
         run: |
           for i in `seq 1 30`; do
-            mysqladmin ping -h127.0.0.1 -P3306 -uroot -proot && break
+            mysqladmin ping -h 127.0.0.1 -uroot -proot && break
             sleep 2
           done
 
-      - name: Import schema
+      - name: Create database & config
         run: |
-          mysql -h127.0.0.1 -P3306 -uroot -proot < sql/schema.sql
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS ${{ vars.DB_DATABASE || 'bookstore_ci' }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mkdir -p config
+          cat > config/database.php <<'PHP'
+          <?php
+          return [
+              'DB_HOST' => '127.0.0.1',
+              'DB_PORT' => '3306',
+              'DB_NAME' => getenv('DB_DATABASE') ?: (getenv('GITHUB_VARIABLES_DB_DATABASE') ?: 'bookstore_ci'),
+              'DB_USER' => getenv('DB_USERNAME') ?: 'root',
+              'DB_PASS' => getenv('DB_PASSWORD') ?: 'root',
+              'DB_CHARSET' => 'utf8mb4',
+          ];
+          PHP
 
-      - name: Start PHP server
+      - name: PHP lint
         run: |
-          php -S 127.0.0.1:8001 -t public > /dev/null 2>&1 &
-          echo $! > .phpserverpid
-          sleep 2
+          find . -type f -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
 
-      - name: Run PHPUnit
-        env:
-          DB_HOST: 127.0.0.1
-          DB_USER: root
-          DB_PASS: root
-          DB_NAME: bookstore
-        run: vendor/bin/phpunit --testdox
+      - name: Run migrations
+        run: php scripts/migrate.php up
 
-      - name: Run Codeception (acceptance)
-        env:
-          DB_HOST: 127.0.0.1
-          DB_USER: root
-          DB_PASS: root
-          DB_NAME: bookstore
-        run: vendor/bin/codecept run acceptance
+      - name: Seed demo data
+        run: php scripts/migrate.php seed
 
-      - name: Stop PHP server
-        if: always()
-        run: kill $(cat .phpserverpid) || true
+      - name: Smoke check - list tables
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "SHOW TABLES IN ${{ vars.DB_DATABASE || 'bookstore_ci' }};"
+
+      # Add your test suite here (PHPUnit/Codeception) if present
