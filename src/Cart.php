@@ -60,4 +60,3 @@ class Cart
         return $tax;
     }
 }
-
