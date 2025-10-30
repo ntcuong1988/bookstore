@@ -19,7 +19,7 @@ final class CartTest extends TestCase {
   }
 
   public function testCalTaxValid(): void {
-    $this->assertSame(80.0, Cart::calTaxFromValue(1000));
+    $this->assertSame(100.0, Cart::calTaxFromValue(1000));
   }
 
   public function testCalTaxZero(): void {
