@@ -56,7 +56,7 @@ class Cart
                 "Giá trị truyền vào phải lớn hơn hoặc bằng 0."
             );
         }
-        $tax = $total * 0.08;
+        $tax = $total * 0.1;
         return $tax;
     }
 }
